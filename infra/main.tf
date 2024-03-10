@@ -184,6 +184,13 @@ resource "aws_api_gateway_resource" "encurtame_url_id" {
 
 }
 
+# wildcard resource for CORS
+resource "aws_api_gateway_resource" "encurtame_wildcard" {
+  rest_api_id = aws_api_gateway_rest_api.encurtame.id
+  parent_id   = aws_api_gateway_rest_api.encurtame.root_resource_id
+  path_part   = "{proxy+}"
+
+}
 ################################
 ## API Gateway Methods
 ################################
@@ -224,7 +231,6 @@ resource "aws_api_gateway_integration" "store_url_lambda" {
   type                    = "AWS_PROXY"
   uri                     = aws_lambda_function.store_url_lambda.invoke_arn
 }
-
 
 
 ################################
@@ -334,6 +340,19 @@ resource "aws_cloudwatch_log_group" "store_url_lambda" {
     prevent_destroy = false
   }
 }
+
+################################
+## Cors Config
+################################
+
+module "cors" {
+  source = "squidfunk/api-gateway-enable-cors/aws"
+  version = "0.3.3"
+
+  api_id          = aws_api_gateway_rest_api.encurtame.id
+  api_resource_id = aws_api_gateway_resource.encurtame_wildcard.id
+}
+
 ## end of provisioning
 output "base_url" {
   value = aws_api_gateway_deployment.encurtame.invoke_url
