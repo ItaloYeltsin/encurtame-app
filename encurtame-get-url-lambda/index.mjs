@@ -19,8 +19,10 @@ export const handler = async (event) => {
     const url = await urlService.get(id)
     logger.info(`Got URL: ${JSON.stringify(url)}}`)
     return {
-      statusCode: 200,
-      body: JSON.stringify({ url })
+      headers: {
+        'Location': url,
+      },
+      statusCode: 301,
     }
   } catch (err) {
     logger.error(`Error getting URL: ${err}`)

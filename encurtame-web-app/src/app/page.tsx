@@ -1,17 +1,43 @@
 'use client'
 import Image from "next/image";
-import { useState } from "react";
+import { use, useEffect, useLayoutEffect, useState } from "react";
+import { useRouter } from 'next/navigation';
+
+// function redirectIfPathMatchesShortUrl(path: string) {
+//   const { push } = useRouter();
+
+//   if(new RegExp(/^[a-zA-Z_0-9]{5}$/).test(path)) {
+//     useLayoutEffect(() => {
+//       push('https://google.com');
+//     });
+//     return true;
+//   }
+//   return false;
+// }
 
 export default function Home() {
+
+  // if (redirectIfPathMatchesShortUrl(window.location.pathname)) {
+  //   return <div></div>
+  // }
+  const { push } = useRouter();
+
+  useLayoutEffect(() => {
+    if(new RegExp(/^[a-zA-Z_0-9]{5}$/).test(window.location.pathname)) {
+      push('https://google.com');
+    }
+  });
 
   const [formData, setFormData] = useState({
     url: ""
   });
 
+  const WEB_APP_URL = `${process.env.WEB_APP_URL}`
+
   const [formSuccess, setFormSuccess] = useState(false)
   const [formSuccessMessage, setFormSuccessMessage] = useState("")
 
-  const handleInput = (e) => {
+  const handleInput = (e: React.ChangeEvent<any>) => {
     const fieldName = e.target.name;
     const fieldValue = e.target.value;
 
@@ -21,21 +47,21 @@ export default function Home() {
     }));
   }
 
-  const copyToClipBoard = (e) => {
+  const copyToClipBoard = () => {
     navigator.clipboard.writeText(formSuccessMessage)
     // set button text to "copied!"
-    const value = document.getElementsByName("shortUrl")[0].value
+    const value = (document.getElementsByName("shortUrl")[0] as HTMLInputElement).value
     document.getElementsByName("copyButton")[0].innerText = "copied!"
   }
 
-  const submitForm = (e) => {
+  const submitForm = (e: React.ChangeEvent<any>) => {
     // We don't want the page to refresh
     e.preventDefault()
 
-    const formURL = e.target.action
+    const apiURL = process.env.API_URL
 
     // POST the data to the URL of the form
-    fetch(formURL, {
+    fetch(apiURL ?? '', {
       method: "POST",
       body: JSON.stringify(formData),
       headers: {
@@ -49,7 +75,7 @@ export default function Home() {
         })
 
         setFormSuccess(true)
-        setFormSuccessMessage(`${window.location.href}${data.id}`)
+        setFormSuccessMessage(`${WEB_APP_URL}${data.id}`)
       })
   }
 
@@ -72,7 +98,7 @@ export default function Home() {
             <button name="copyButton" onClick={() => {copyToClipBoard()}} className="text-white bg-yellow-400 hover:bg-yellow-500 focus:outline-none focus:ring-4 focus:ring-yellow-300 font-medium rounded-full text-sm px-5 py-2.5 text-center me-2 mb-2 dark:focus:ring-yellow-900" type="submit">copy!</button>
           </div>
           :
-          <form className="flex flex-row items-center w-1/2" method="POST"  action="https://2alp7i82r8.execute-api.us-east-1.amazonaws.com/Dev/url" onSubmit={submitForm}>
+          <form className="flex flex-row items-center w-1/2" method="POST" onSubmit={submitForm}>
               <input type="text" name="url" onChange={handleInput} value={formData.url} className="mr-2 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"/>
               <button className="w-200 text-white bg-yellow-400 hover:bg-yellow-500 focus:outline-none focus:ring-4 focus:ring-yellow-300 font-medium rounded-full text-sm px-5 py-2.5 text-center me-2 mb-2 dark:focus:ring-yellow-900" type="submit">
                 shorten!

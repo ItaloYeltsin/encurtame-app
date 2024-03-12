@@ -1,4 +1,4 @@
-import { URLDynamoRepository, URLService } from 'encurtame-commons-lambda'
+import { URLDynamoRepository, URLService, allowCorsConfig } from 'encurtame-commons-lambda'
 import log4js from 'log4js'
 
 log4js.configure({
@@ -14,17 +14,19 @@ export const handler = async (event) => {
   logger.info('Handling request...')
   const url = JSON.parse(event.body).url
   logger.info(`Storing URL: ${url}`)
+  let response = {};
   try {
     const urlItem = await urlService.insert(url)
-    return {
+    response = {
       statusCode: 200,
       body: JSON.stringify(urlItem)
     }
   } catch (err) {
     logger.error(`Error storing URL: ${err}`)
-    return {
+    response = {
       statusCode: 500,
       body: JSON.stringify({ message: 'Error getting URL' })
     }
   }
+  return allowCorsConfig(response)
 }

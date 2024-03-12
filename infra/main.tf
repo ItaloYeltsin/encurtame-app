@@ -1,10 +1,130 @@
 
+locals {
+  aws_profile = "italo-personal"
+}
 provider "aws" {
   region  = "us-east-1"
-  profile = "italo-personal"
+  profile = "${local.aws_profile}"
 }
 
 data "aws_region" "current" {}
+
+
+################################
+## S3 Bucket to host static website
+################################
+locals {
+  s3_name    = "encurtame-web-app"
+}
+
+
+resource "aws_s3_bucket" "encurtame" {
+  bucket = local.s3_name
+
+}
+
+resource "aws_s3_bucket_public_access_block" "encurtame" {
+  bucket = aws_s3_bucket.encurtame.id
+
+  block_public_acls       = false
+  block_public_policy     = false
+  ignore_public_acls      = false
+  restrict_public_buckets = false
+}
+
+# resource "aws_s3_bucket_acl" "encurtame" {
+#   bucket = aws_s3_bucket.encurtame.id
+#   acl    = "private"
+# }
+
+resource "aws_s3_bucket_website_configuration" "encurtame" {
+  bucket = aws_s3_bucket.encurtame.bucket
+
+  index_document {
+    suffix = "index.html"
+  }
+
+  error_document {
+    key = "index.html"
+  }
+
+}
+
+resource "aws_s3_bucket_policy" "encurtame" {
+  bucket = aws_s3_bucket.encurtame.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Id      = "AllowGetObjects"
+    Statement = [
+      {
+        Sid       = "AllowPublic"
+        Effect    = "Allow"
+        Principal = "*"
+        Action    = "s3:GetObject"
+        Resource  = "${aws_s3_bucket.encurtame.arn}/**"
+      }
+    ]
+  })
+}
+
+################################
+## Cloudfront
+################################
+
+locals {
+  s3_origin_id   = "${local.s3_name}-origin"
+  s3_domain_name = "${local.s3_name}.s3-website-${data.aws_region.current.name}.amazonaws.com"
+}
+
+resource "aws_cloudfront_distribution" "encurtame" {
+
+  enabled = true
+
+  origin {
+    origin_id                = local.s3_origin_id
+    domain_name              = local.s3_domain_name
+    custom_origin_config {
+      http_port              = 80
+      https_port             = 443
+      origin_protocol_policy = "http-only"
+      origin_ssl_protocols   = ["TLSv1"]
+    }
+  }
+
+  default_cache_behavior {
+
+    target_origin_id = local.s3_origin_id
+    allowed_methods  = ["GET", "HEAD"]
+    cached_methods   = ["GET", "HEAD"]
+
+    forwarded_values {
+      query_string = true
+
+      cookies {
+        forward = "all"
+      }
+    }
+
+    viewer_protocol_policy = "redirect-to-https"
+    min_ttl                = 0
+    default_ttl            = 0
+    max_ttl                = 0
+  }
+
+  restrictions {
+    geo_restriction {
+      restriction_type = "none"
+    }
+  }
+
+  viewer_certificate {
+    cloudfront_default_certificate = true
+  }
+
+  price_class = "PriceClass_100"
+
+}
 
 ################################
 ## Tables
@@ -34,6 +154,11 @@ resource "aws_iam_role" "store_url_lambda" {
   assume_role_policy = file("roles/generic-lambda-assume-role.json")
 }
 
+
+resource "aws_iam_role" "encurtame_web_site_redirect" {
+  name               = "encurtame-web-site-redirect-role"
+  assume_role_policy = file("roles/generic-lambda-assume-role.json")
+}
 
 ################################
 ## Policies
@@ -74,7 +199,18 @@ resource "aws_iam_policy" "store_url_lambda" {
 }
 
 
+data "aws_iam_policy_document" "encurtame_web_site_redirect" {
+  statement {
+    actions   = ["logs:CreateLogStream", "logs:PutLogEvents"]
+    resources = ["arn:aws:logs:*:*:*"]
+  }
+}
 
+resource "aws_iam_policy" "encurtame_web_site_redirect" {
+  name        = "encurtame-web-site-redirect"
+  description = "allow encurtame_web_site_redirect tu write logs"
+  policy      = data.aws_iam_policy_document.get_url_lambda.json
+}
 ################################
 ## Policy attachments
 ################################
@@ -157,6 +293,30 @@ resource "aws_lambda_function" "store_url_lambda" {
   depends_on = [aws_iam_role_policy_attachment.store_url_lambda]
 }
 
+
+data "archive_file" "encurtame_web_site_redirect" {
+  type        = "zip"
+  source_dir  = "${path.module}/../encurtame-redirect-to-app-lambda"
+  output_path = "${path.module}/encurtame-redirect-to-app-lambda.zip"
+}
+
+resource "aws_lambda_function" "encurtame_web_site_redirect" {
+
+  function_name    = "EncurtarWebSiteRedirect"
+  role = aws_iam_role.encurtame_web_site_redirect.arn
+  filename         = data.archive_file.encurtame_web_site_redirect.output_path
+  source_code_hash = data.archive_file.encurtame_web_site_redirect.output_base64sha256
+  environment {
+    variables = {
+      WEB_APP_URL = "https://${aws_cloudfront_distribution.encurtame.domain_name}"
+    }
+  }
+  handler    = "index.handler"
+  runtime    = "nodejs20.x"
+  timeout    = 10
+}
+
+
 ################################
 ## API Gateway
 ################################
@@ -170,6 +330,7 @@ resource "aws_api_gateway_rest_api" "encurtame" {
 ################################
 ## API Gateway Resources
 ################################
+
 resource "aws_api_gateway_resource" "encurtame" {
   rest_api_id = aws_api_gateway_rest_api.encurtame.id
   parent_id   = aws_api_gateway_rest_api.encurtame.root_resource_id
@@ -208,6 +369,13 @@ resource "aws_api_gateway_method" "store_url_lambda" {
   authorization = "NONE"
 }
 
+resource "aws_api_gateway_method" "encurtame_web_site" {
+  rest_api_id   = aws_api_gateway_rest_api.encurtame.id
+  resource_id   = aws_api_gateway_rest_api.encurtame.root_resource_id
+  http_method   = "GET"
+  authorization = "NONE"
+}
+
 ################################
 ## API Gateway Integrations
 ################################
@@ -232,12 +400,22 @@ resource "aws_api_gateway_integration" "store_url_lambda" {
   uri                     = aws_lambda_function.store_url_lambda.invoke_arn
 }
 
+resource "aws_api_gateway_integration" "encurtame_web_site" {
+  rest_api_id = aws_api_gateway_rest_api.encurtame.id
+  resource_id = aws_api_gateway_rest_api.encurtame.root_resource_id
+  http_method = aws_api_gateway_method.encurtame_web_site.http_method
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = aws_lambda_function.encurtame_web_site_redirect.invoke_arn
+
+}
 
 ################################
 ## API Gateway Deployments
 ################################
 resource "aws_api_gateway_deployment" "encurtame" {
   rest_api_id = aws_api_gateway_rest_api.encurtame.id
+  depends_on = [ aws_api_gateway_integration.encurtame_web_site, aws_api_gateway_integration.get_url_lambda, aws_api_gateway_integration.store_url_lambda ]
 }
 
 resource "aws_api_gateway_stage" "encurtame" {
@@ -270,6 +448,14 @@ resource "aws_lambda_permission" "store_url_lambda" {
 
   source_arn = "${aws_api_gateway_rest_api.encurtame.execution_arn}/*/*/url"
 
+}
+
+resource "aws_lambda_permission" "encurtame_web_site_redirect" {
+  statement_id  = "AllowExecutionFromAPIGateway"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.encurtame_web_site_redirect.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.encurtame.execution_arn}/*/GET/"
 }
 
 
@@ -346,14 +532,43 @@ resource "aws_cloudwatch_log_group" "store_url_lambda" {
 ################################
 
 module "cors" {
-  source = "squidfunk/api-gateway-enable-cors/aws"
+  source  = "squidfunk/api-gateway-enable-cors/aws"
   version = "0.3.3"
 
   api_id          = aws_api_gateway_rest_api.encurtame.id
   api_resource_id = aws_api_gateway_resource.encurtame_wildcard.id
 }
 
+################################
+## Deploy Website App
+################################
+
+# uploads resource to bucket
+
+data "archive_file" "website_app" {
+  type        = "zip"
+  source_dir = "${path.module}/../encurtame-web-app/out"
+  output_path = "encutarme-web-app.zip"
+}
+
+resource "null_resource" "remove_and_upload_to_s3" {
+  triggers = {
+    source_hash = data.archive_file.website_app.output_base64sha256
+  }
+  provisioner "local-exec" {
+    command = "aws s3 sync ${path.module}/../encurtame-web-app/out s3://${aws_s3_bucket.encurtame.id} --profile ${local.aws_profile}"
+  }
+}
+
 ## end of provisioning
 output "base_url" {
   value = aws_api_gateway_deployment.encurtame.invoke_url
+}
+
+output "s3_url" {
+  value = aws_s3_bucket.encurtame.website_endpoint
+}
+
+output "cloudfront_url" {
+  value = aws_cloudfront_distribution.encurtame.domain_name
 }
