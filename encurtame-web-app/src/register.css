@@ -1,0 +1,20 @@
+.register {
+  width: 30em;
+}
+
+
+.encurtame-register-div {
+  margin-top: 15em;
+  display: flex;
+  width: 100%;
+  gap: 16px;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+@media (max-width: 720px) {
+  .register {
+    width: 98%;
+  }
+}

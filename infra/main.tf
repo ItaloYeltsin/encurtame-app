@@ -547,7 +547,7 @@ module "cors" {
 
 data "archive_file" "website_app" {
   type        = "zip"
-  source_dir = "${path.module}/../encurtame-web-app/out"
+  source_dir = "${path.module}/../encurtame-web-app/dist"
   output_path = "encutarme-web-app.zip"
 }
 
@@ -556,7 +556,7 @@ resource "null_resource" "remove_and_upload_to_s3" {
     source_hash = data.archive_file.website_app.output_base64sha256
   }
   provisioner "local-exec" {
-    command = "aws s3 sync ${path.module}/../encurtame-web-app/out s3://${aws_s3_bucket.encurtame.id} --profile ${local.aws_profile}"
+    command = "aws s3 sync ${path.module}/../encurtame-web-app/dist s3://${aws_s3_bucket.encurtame.id} --profile ${local.aws_profile}"
   }
 }
 

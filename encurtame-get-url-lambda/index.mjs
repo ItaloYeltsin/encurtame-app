@@ -19,10 +19,12 @@ export const handler = async (event) => {
     const url = await urlService.get(id)
     logger.info(`Got URL: ${JSON.stringify(url)}}`)
     return {
+      statusCode: 200,
       headers: {
-        'Location': url,
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*', // Required for CORS support to work'
       },
-      statusCode: 301,
+      body: JSON.stringify({ url: url })
     }
   } catch (err) {
     logger.error(`Error getting URL: ${err}`)

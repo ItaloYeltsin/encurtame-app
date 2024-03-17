@@ -1,0 +1,33 @@
+.encurtame-item {
+    width: 40em;
+}
+
+.encurtame-button {
+    height: 100%;
+}
+
+.encurtame-div {
+    margin-top: 15em;
+    display: flex;
+    width: 100%;
+    gap: 16px;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+}
+
+@media (max-width: 720px) {
+    .encurtame-div {
+        flex-direction: column;
+        width: 100%;
+        gap: 24px;
+    }
+
+    .encurtame-item {
+        width: 100%;
+    }
+
+    .encurtame-button {
+        width: 100% !important;
+    }
+}
