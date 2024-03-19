@@ -1,0 +1,18 @@
+{
+  "name": "encurtame-store-url-lambda",
+  "version": "0.0.1",
+  "description": "Encurtame store url lambda",
+  "main": "index.mjs",
+  "scripts": {
+    "standard": "standard --fix",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Italo Yeltsin",
+  "license": "ISC",
+  "dependencies": {
+    "log4js": "^6.9.1"
+  },
+  "devDependencies": {
+    "encurtame-commons-lambda": "file:../encurtame-commons-lambda/nodejs"
+  }
+}

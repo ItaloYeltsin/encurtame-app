@@ -12,16 +12,29 @@
   "description": "Encurtame get url lambda",
   "scripts": {
     "standard": "standard --fix",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest",
+    "test-watch": "jest --watch"
   },
   "author": "Italo Yeltsin",
   "license": "ISC",
   "dependencies": {
+    "@aws-sdk/logger": "^0.1.0-preview.1",
+    "@aws-sdk/util-dynamodb": "^3.535.0",
+    "bcrypt": "^5.1.1",
     "log4js": "^6.9.1",
-    "nanoid": "^5.0.6"
+    "nanoid": "^5.0.6",
+    "uuid": "^9.0.1"
   },
   "devDependencies": {
     "@aws-sdk/client-dynamodb": "^3.29.0",
-    "standard": "^17.1.0"
+    "@aws-sdk/lib-dynamodb": "^3.535.0",
+    "@babel/core": "^7.24.0",
+    "@babel/plugin-transform-modules-commonjs": "^7.23.3",
+    "@babel/preset-env": "^7.24.0",
+    "@jest/globals": "^29.7.0",
+    "babel-jest": "^29.7.0",
+    "jest": "^29.7.0",
+    "standard": "^17.1.0",
+    "ts-jest": "^29.1.2"
   }
 }

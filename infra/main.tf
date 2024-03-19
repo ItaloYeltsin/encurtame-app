@@ -141,9 +141,42 @@ resource "aws_dynamodb_table" "url_table" {
   }
 }
 
+resource "aws_dynamodb_table" "user_table" {
+  name           = "encurtame-user-table"
+  hash_key       = "id"
+  billing_mode   = "PROVISIONED"
+  read_capacity  = 5
+  write_capacity = 5
+
+  attribute {
+    name = "id"
+    type = "S"
+  }
+
+  attribute {
+    name = "email"
+    type = "S"
+  }
+
+  global_secondary_index {
+    name               = "email-index"
+    hash_key           = "email"
+    projection_type    = "ALL"
+    read_capacity      = 5
+    write_capacity     = 5
+  }
+
+}
+
 ################################
 ## Iam Roles
 ################################
+
+resource "aws_iam_role" "register_user_lambda" {
+  name               = "register-user-lambda-role"
+  assume_role_policy = file("roles/generic-lambda-assume-role.json")
+}
+
 resource "aws_iam_role" "get_url_lambda" {
   name               = "get-url-lambda-role"
   assume_role_policy = file("roles/generic-lambda-assume-role.json")
@@ -163,6 +196,22 @@ resource "aws_iam_role" "encurtame_web_site_redirect" {
 ################################
 ## Policies
 ################################
+data "aws_iam_policy_document" "register_user_lambda" {
+  statement {
+    actions   = ["dynamodb:PutItem", "dynamodb:ConditionCheckItem", "dynamodb:GetItem", "dynamodb:Scan", "dynamodb:Query", "dynamodb:BatchGetItem"]
+    resources = [aws_dynamodb_table.user_table.arn]
+  }
+  statement {
+    actions   = ["logs:CreateLogStream", "logs:PutLogEvents"]
+    resources = ["arn:aws:logs:*:*:*"]
+  }
+}
+
+resource "aws_iam_policy" "register_user_lambda" {
+  name        = "register-user-lambda-policy"
+  description = "A policy that allows register-user-lambda to put items from dynamodb"
+  policy      = data.aws_iam_policy_document.register_user_lambda.json
+}
 
 data "aws_iam_policy_document" "get_url_lambda" {
   statement {
@@ -214,6 +263,11 @@ resource "aws_iam_policy" "encurtame_web_site_redirect" {
 ################################
 ## Policy attachments
 ################################
+resource "aws_iam_role_policy_attachment" "register_user_lambda" {
+  role       = aws_iam_role.register_user_lambda.name
+  policy_arn = aws_iam_policy.register_user_lambda.arn
+}
+
 resource "aws_iam_role_policy_attachment" "get_url_lambda" {
   role       = aws_iam_role.get_url_lambda.name
   policy_arn = aws_iam_policy.get_url_lambda.arn
@@ -242,6 +296,29 @@ resource "aws_lambda_layer_version" "commons_lambda_layer" {
   description      = "commons lib for developing Encurtame lambdas"
 
   compatible_runtimes = ["nodejs20.x"]
+}
+
+data "archive_file" "register_user_lambda" {
+  type        = "zip"
+  source_dir  = "${path.module}/../encurtame-register-user-lambda"
+  output_path = "${path.module}/encurtame-register-user-lambda.zip"
+}
+
+resource "aws_lambda_function" "register_user_lambda" {
+
+    function_name    = "RegisterUserLambdaFunction"
+    filename         = data.archive_file.register_user_lambda.output_path
+    source_code_hash = data.archive_file.register_user_lambda.output_base64sha256
+    role             = aws_iam_role.register_user_lambda.arn
+    environment {
+      variables = {
+        TABLE_NAME = aws_dynamodb_table.user_table.name
+      }
+    }
+    handler    = "index.handler"
+    runtime    = "nodejs20.x"
+    timeout    = 10
+    depends_on = [aws_iam_role_policy_attachment.register_user_lambda]
 }
 
 data "archive_file" "get_url_lambda" {
@@ -331,6 +408,13 @@ resource "aws_api_gateway_rest_api" "encurtame" {
 ## API Gateway Resources
 ################################
 
+resource "aws_api_gateway_resource" "register_user_lambda" {
+  rest_api_id = aws_api_gateway_rest_api.encurtame.id
+  parent_id   = aws_api_gateway_rest_api.encurtame.root_resource_id
+  path_part   = "user"
+
+}
+
 resource "aws_api_gateway_resource" "encurtame" {
   rest_api_id = aws_api_gateway_rest_api.encurtame.id
   parent_id   = aws_api_gateway_rest_api.encurtame.root_resource_id
@@ -355,6 +439,14 @@ resource "aws_api_gateway_resource" "encurtame_wildcard" {
 ################################
 ## API Gateway Methods
 ################################
+
+resource "aws_api_gateway_method" "register_user_lambda" {
+  rest_api_id   = aws_api_gateway_rest_api.encurtame.id
+  resource_id   = aws_api_gateway_resource.register_user_lambda.id
+  http_method   = "POST"
+  authorization = "NONE"
+}
+
 resource "aws_api_gateway_method" "get_url_lambda" {
   rest_api_id   = aws_api_gateway_rest_api.encurtame.id
   resource_id   = aws_api_gateway_resource.encurtame_url_id.id
@@ -379,6 +471,18 @@ resource "aws_api_gateway_method" "encurtame_web_site" {
 ################################
 ## API Gateway Integrations
 ################################
+
+resource "aws_api_gateway_integration" "register_user_lambda" {
+  rest_api_id = aws_api_gateway_rest_api.encurtame.id
+  resource_id = aws_api_gateway_resource.register_user_lambda.id
+  http_method = aws_api_gateway_method.register_user_lambda.http_method
+
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = aws_lambda_function.register_user_lambda.invoke_arn
+  depends_on              = [aws_lambda_function.register_user_lambda]
+}
+
 resource "aws_api_gateway_integration" "get_url_lambda" {
   rest_api_id = aws_api_gateway_rest_api.encurtame.id
   resource_id = aws_api_gateway_resource.encurtame_url_id.id
@@ -432,6 +536,14 @@ resource "aws_api_gateway_stage" "encurtame" {
 ################################
 ## API Gateway Permissions
 ################################
+resource "aws_lambda_permission" "register_user_lambda" {
+  statement_id  = "AllowExecutionFromAPIGateway"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.register_user_lambda.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.encurtame.execution_arn}/*/*/user"
+}
+
 resource "aws_lambda_permission" "get_url_lambda" {
   statement_id  = "AllowExecutionFromAPIGateway"
   action        = "lambda:InvokeFunction"
@@ -509,6 +621,14 @@ EOF
 resource "aws_iam_role_policy_attachment" "main" {
   role       = aws_iam_role.main.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs"
+}
+
+resource "aws_cloudwatch_log_group" "register_user_lambda" {
+  name              = "/aws/lambda/${aws_lambda_function.register_user_lambda.function_name}"
+  retention_in_days = 1
+  lifecycle {
+    prevent_destroy = false
+  }
 }
 
 resource "aws_cloudwatch_log_group" "get_url_lambda" {

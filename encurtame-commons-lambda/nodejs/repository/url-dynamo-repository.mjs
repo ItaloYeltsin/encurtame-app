@@ -1,16 +1,12 @@
-import { URLRepository } from './url-repository.mjs'
-import { DynamoDBClient, PutItemCommand, GetItemCommand } from '@aws-sdk/client-dynamodb';
+import { DynamoDBClient, PutItemCommand, GetItemCommand } from '@aws-sdk/client-dynamodb'
 import log4js from 'log4js'
 import { nanoid } from 'nanoid'
 
-var logger;
+const client = new DynamoDBClient()
 
-const client = new DynamoDBClient();
-
-export class URLDynamoRepository extends URLRepository {
+export class URLDynamoRepository {
   constructor () {
-    logger = log4js.getLogger('URLDynamoRepository');
-    super()
+    this.logger = log4js.getLogger('URLDynamoRepository')
   }
 
   async retrieve (id) {
@@ -21,7 +17,7 @@ export class URLDynamoRepository extends URLRepository {
       }
     }
     console.log(`Retrieving URL for id: ${id}`)
-    const command = new GetItemCommand(params);
+    const command = new GetItemCommand(params)
     return client.send(command).then((data) => {
       if (!data.Item) {
         console.log(`URL not found for id: ${id}`)
@@ -31,7 +27,7 @@ export class URLDynamoRepository extends URLRepository {
     }).catch((err) => {
       console.log(err)
       throw err
-    });
+    })
   }
 
   async save (url) {
@@ -42,10 +38,10 @@ export class URLDynamoRepository extends URLRepository {
         url: { S: url }
       }
     }
-    const command = new PutItemCommand(params);
+    const command = new PutItemCommand(params)
     return client.send(command).then((data) => {
       console.log(`URL saved: ${JSON.stringify(data)}`)
-      return {id : params.Item.id.S, url: params.Item.url.S}
+      return { id: params.Item.id.S, url: params.Item.url.S }
     })
   }
 }
