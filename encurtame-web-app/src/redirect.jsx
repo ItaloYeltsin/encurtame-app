@@ -1,7 +1,7 @@
 import { useLayoutEffect } from "react";
 
 export default function RedirectPage() {
-  const apiURL = import.meta.env.VITE_API_URL
+  const apiURL = import.meta.env.VITE_API_URL + 'url/';
   const id = document.location.pathname.replace("/", "");
 
   useLayoutEffect(() => {

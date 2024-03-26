@@ -1,19 +1,21 @@
 import { useState,  } from 'react'
 import { Form, useNavigate, useLocation } from 'react-router-dom'
 import { TextField, Button, Stack } from '@mui/material'
-
+import { Overlay } from './components/overlay';
 
 export default function Home() {
   const navigate = useNavigate();
   let message = null;
-
   const apiURL = import.meta.env.VITE_API_URL
   const webAppURL = import.meta.env.VITE_WEB_APP_URL
+
+  // setup states
+  const [loading, setLoading] = useState(false)
   const [formSuccess, setFormSuccess] = useState(false)
   const [formSuccessMessage, setFormSuccessMessage] = useState("")
   const [formData, setFormData] = useState({
     url: ""
-  });
+  })
 
   const handleInput = (e) => {
     const fieldName = e.target.name;
@@ -39,9 +41,9 @@ export default function Home() {
     let data = {
       url: document.getElementsByName('url')[0].value
     };
-
+    setLoading(true)
     // POST the data to the URL of the form
-    fetch(apiURL ?? '', {
+    fetch(`${apiURL}url` ?? '', {
       method: "POST",
       body: JSON.stringify(data),
       headers: {
@@ -53,9 +55,12 @@ export default function Home() {
         setFormData({
           url: ""
         })
-
         setFormSuccess(true)
         navigate('/show-link', { state: { url: `${webAppURL}${data.id}` } });
+      })
+      .catch((error) => {
+        setLoading(false)
+        console.error('Error:', error);
       })
   }
 
@@ -67,6 +72,7 @@ export default function Home() {
           <Button className='encurtame-button' variant="contained" type="submit">Encurtar</Button>
         </div>
       </Form>
+      {loading && <Overlay />}
     </div>
   )
 }

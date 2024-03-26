@@ -14,11 +14,9 @@ export default function ShowLinkPage(props) {
   }
 
   return (
-    <Form>
-      <Stack spacing={2} direction="row">
-        <TextField name='shortUrl' className='encurtame-input' type="text" value={url}/>
-        <Button name="copyButton" className='encurtame-button' variant="contained" onClick={copyToClipBoard}>Copy</Button>
-      </Stack>
-    </Form>
+    <div className='encurtame-div'>
+      <TextField name='shortUrl' className='encurtame-input encurtame-item' type="text" value={url}/>
+      <Button name="copyButton" className='encurtame-button' variant="contained" onClick={copyToClipBoard}>Copy</Button>
+    </div>
   )
 }
