@@ -1,16 +1,12 @@
 import { URLDynamoRepository, URLService, allowCorsConfig } from 'encurtame-commons-lambda'
-import log4js from 'log4js'
+import { Logger, LoggerGlobalInfoHolder } from 'encurtame-commons-lambda'
 
-log4js.configure({
-  appenders: { out: { type: 'stdout', layout: { type: 'coloured' } } },
-  categories: { default: { appenders: ['out'], level: process.env.LOG_LEVEL || 'info' } }
-})
-
-const logger = log4js.getLogger('StoreURLLambda')
+const logger = Logger.getLogger('StoreURLLambda')
 const urlRepository = new URLDynamoRepository()
 const urlService = new URLService(urlRepository)
 
-export const handler = async (event) => {
+export const handler = async (event, context) => {
+  LoggerGlobalInfoHolder.getInstance().correlationId = event.requestContext.requestId
   logger.info('Handling request...')
   const url = JSON.parse(event.body).url
   logger.info(`Storing URL: ${url}`)

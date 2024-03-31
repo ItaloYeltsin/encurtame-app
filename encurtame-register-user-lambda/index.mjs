@@ -1,17 +1,18 @@
 import { UserDynamoRepository, UserService, allowCorsConfig } from 'encurtame-commons-lambda'
 import { ConflictingResourceException } from 'encurtame-commons-lambda'
-import log4js from 'log4js'
+import { Logger, LoggerGlobalInfoHolder } from 'encurtame-commons-lambda'
 
 log4js.configure({
   appenders: { out: { type: 'stdout', layout: { type: 'coloured' } } },
   categories: { default: { appenders: ['out'], level: process.env.LOG_LEVEL || 'info' } }
 })
 
-const logger = log4js.getLogger('RegisterUserLambda')
+const logger = Logger.getLogger('RegisterUserLambda')
 const userRepository = new UserDynamoRepository()
 const userService = new UserService(userRepository)
 
-export const handler = async (event) => {
+export const handler = async (event, context) => {
+  LoggerGlobalInfoHolder.getInstance().correlationId = event.requestContext.requestId
   logger.info('Handling request...')
   const user = JSON.parse(event.body)
   logger.info(`Storing User: ${JSON.stringify(user)}`)
@@ -23,7 +24,7 @@ export const handler = async (event) => {
       body: JSON.stringify(userItem)
     }
   } catch (err) {
-    console.log(err)
+    logger.error(err)
     if(err instanceof ConflictingResourceException) {
       console.error(err)
       response = {

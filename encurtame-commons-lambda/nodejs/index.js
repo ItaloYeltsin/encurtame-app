@@ -5,6 +5,8 @@ import { UserService } from './service/user-service.mjs'
 import { URLDynamoRepository } from './repository/url-dynamo-repository.mjs'
 import { UserDynamoRepository } from './repository/user-dynamo-repository.mjs'
 import { allowCorsConfig } from './util/formart-cors-config.mjs'
+import { Logger, LoggerGlobalInfoHolder } from './logging/logger.mjs'
+
 export {
   // exceptions
   NotFoundException,
@@ -15,6 +17,9 @@ export {
   // repositories
   URLDynamoRepository,
   UserDynamoRepository,
+  // logging
+  Logger,
+  LoggerGlobalInfoHolder,
   // utils
   allowCorsConfig
 }

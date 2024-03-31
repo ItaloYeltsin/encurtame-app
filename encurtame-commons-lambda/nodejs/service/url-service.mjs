@@ -1,10 +1,10 @@
 import { NotFoundException } from '../exception/not-found-exception.mjs'
-import log4js from 'log4js'
+import { Logger } from '../logging/logger.mjs'
 
 export class URLService {
   constructor (urlRepository) {
     this.urlRepository = urlRepository
-    this.logger = log4js.getLogger('URLService')
+    this.logger = Logger.getLogger('URLService')
   }
 
   async get (id) {

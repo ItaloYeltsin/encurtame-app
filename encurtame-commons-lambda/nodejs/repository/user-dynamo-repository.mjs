@@ -1,11 +1,11 @@
 import { DynamoDBClient, ScanCommand, PutItemCommand } from '@aws-sdk/client-dynamodb'
 import { transformfromDynamo, transformToDynamo } from '../util/dynamo-dao-transformation.mjs'
-import log4js from 'log4js'
+import { Logger } from '../logging/logger.mjs'
 import { ConflictingResourceException } from '../exception/conflicting-resource-exception.mjs'
 const client = new DynamoDBClient()
 export class UserDynamoRepository {
   constructor () {
-    this.logger = log4js.getLogger('UserDynamoRepository')
+    this.logger = Logger.getLogger('UserDynamoRepository')
     this.client = client
   }
 
@@ -17,7 +17,7 @@ export class UserDynamoRepository {
         ':emailValue': { S: user.email }
       }
     }
-    console.log(params)
+    this.logger.info('Retrieving user for email: ' + user.email)
     const command = new ScanCommand(params)
     return this.client.send(command).then((data) => {
       return data.Items.map(transformfromDynamo)
@@ -28,7 +28,7 @@ export class UserDynamoRepository {
     // ensure email uniquness by getting item first
     const existingUsers = await this.retrieve(user)
     if (existingUsers.length > 0) {
-      console.log(`User already exists: ${JSON.stringify(existingUsers)}`)
+      this.logger.info(`User already exists: ${JSON.stringify(existingUsers)}`)
       throw new ConflictingResourceException('Email already exists')
     }
 
@@ -40,6 +40,7 @@ export class UserDynamoRepository {
     return this.client.send(command).then((data) => {
       return { id: user.id, email: user.email }
     }).catch((err) => {
+      this.logger.error(err)
       throw err
     })
   }

@@ -1,5 +1,5 @@
 import { NotFoundException } from '../exception/not-found-exception.mjs'
-import log4js from 'log4js'
+import { Logger } from '../logging/logger.mjs'
 import { v4 as uuidv4 } from 'uuid'
 import { passEncrypt } from '../util/encryption.mjs'
 let logger
@@ -7,7 +7,7 @@ let logger
 export class UserService {
   constructor (userRepository) {
     this.userRepository = userRepository
-    logger = log4js.getLogger('URLService')
+    this.logger = Logger.getLogger('UserService')
   }
 
   async get (email) {
@@ -18,14 +18,17 @@ export class UserService {
       }
       return user
     } catch (err) {
-      logger.error(err)
+      this.logger.error(err)
       throw err
     }
   }
 
   async insert (userEntry) {
+    this.logger.info('Generating userId...')
     userEntry.id = uuidv4()
+    this.logger.info('Encrypting password...')
     userEntry.password = await passEncrypt(userEntry.password)
+    this.logger.info('Saving user...')
     const user = await this.userRepository.save(userEntry)
     // return only email and id from user
     return { id: user.id, email: user.email }

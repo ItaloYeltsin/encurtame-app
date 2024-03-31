@@ -1,19 +1,16 @@
 
 import { URLDynamoRepository, URLService, NotFoundException } from 'encurtame-commons-lambda'
-import log4js from 'log4js'
+import { Logger, LoggerGlobalInfoHolder } from 'encurtame-commons-lambda'
 import { allowCorsConfig } from 'encurtame-commons-lambda'
 
-log4js.configure({
-  appenders: { out: { type: 'stdout', layout: { type: 'coloured' } } },
-  categories: { default: { appenders: ['out'], level: process.env.LOG_LEVEL || 'info' } }
-})
 
-const logger = log4js.getLogger('GetURLLambda')
+const logger = Logger.getLogger('GetURLLambda')
 const urlRepository = new URLDynamoRepository()
 const urlService = new URLService(urlRepository)
 
-export const handler = async (event) => {
+export const handler = async (event, context) => {
   let response = {}
+  LoggerGlobalInfoHolder.getInstance().correlationId = event.requestContext.requestId
   logger.info('Handling request...')
   const id = event.pathParameters.id
   logger.info(`Getting URL for id: ${id}`)
