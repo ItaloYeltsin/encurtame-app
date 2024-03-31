@@ -17,7 +17,7 @@ log4js.configure({
             type: 'stdout',
             layout: {
                 type: 'pattern',
-                pattern: '%d [%p] %x{correlationId} %m%n',
+                pattern: '[%d] [%p] [%x{correlationId}] %c - %m%n',
                 tokens: {
                     correlationId: function() {
                         return LoggerGlobalInfoHolder.getInstance().correlationId

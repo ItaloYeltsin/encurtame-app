@@ -2,11 +2,6 @@ import { UserDynamoRepository, UserService, allowCorsConfig } from 'encurtame-co
 import { ConflictingResourceException } from 'encurtame-commons-lambda'
 import { Logger, LoggerGlobalInfoHolder } from 'encurtame-commons-lambda'
 
-log4js.configure({
-  appenders: { out: { type: 'stdout', layout: { type: 'coloured' } } },
-  categories: { default: { appenders: ['out'], level: process.env.LOG_LEVEL || 'info' } }
-})
-
 const logger = Logger.getLogger('RegisterUserLambda')
 const userRepository = new UserDynamoRepository()
 const userService = new UserService(userRepository)
