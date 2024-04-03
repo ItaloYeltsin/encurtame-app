@@ -198,8 +198,12 @@ resource "aws_iam_role" "encurtame_web_site_redirect" {
 ################################
 data "aws_iam_policy_document" "register_user_lambda" {
   statement {
-    actions   = ["dynamodb:PutItem", "dynamodb:ConditionCheckItem", "dynamodb:GetItem", "dynamodb:Scan", "dynamodb:Query", "dynamodb:BatchGetItem"]
+    actions   = ["dynamodb:PutItem", "dynamodb:ConditionCheckItem", "dynamodb:Query"]
     resources = [aws_dynamodb_table.user_table.arn]
+  }
+  statement {
+    actions   = ["dynamodb:Query"]
+    resources = ["${aws_dynamodb_table.user_table.arn}/index/email-index"]
   }
   statement {
     actions   = ["logs:CreateLogStream", "logs:PutLogEvents"]

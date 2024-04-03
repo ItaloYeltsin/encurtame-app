@@ -1,4 +1,4 @@
-import { DynamoDBClient, ScanCommand, PutItemCommand } from '@aws-sdk/client-dynamodb'
+import { DynamoDBClient, QueryCommand, PutItemCommand } from '@aws-sdk/client-dynamodb'
 import { transformfromDynamo, transformToDynamo } from '../util/dynamo-dao-transformation.mjs'
 import { Logger } from '../logging/logger.mjs'
 import { ConflictingResourceException } from '../exception/conflicting-resource-exception.mjs'
@@ -12,13 +12,15 @@ export class UserDynamoRepository {
   async retrieve (user) {
     const params = {
       TableName: process.env.TABLE_NAME,
-      FilterExpression: 'email = :emailValue',
+      KeyConditionExpression: 'email = :emailValue',
       ExpressionAttributeValues: {
-        ':emailValue': { S: user.email }
-      }
+        ':emailValue': { "S": user.email }
+      },
+      IndexName: 'email-index',
+      Limit: 1
     }
     this.logger.info('Retrieving user for email: ' + user.email)
-    const command = new ScanCommand(params)
+    const command = new QueryCommand(params)
     return this.client.send(command).then((data) => {
       return data.Items.map(transformfromDynamo)
     })
