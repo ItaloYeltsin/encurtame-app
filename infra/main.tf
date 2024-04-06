@@ -122,7 +122,7 @@ resource "aws_cloudfront_distribution" "encurtame" {
     cloudfront_default_certificate = true
   }
 
-  price_class = "PriceClass_100"
+  price_class = "PriceClass_200"
 
 }
 
